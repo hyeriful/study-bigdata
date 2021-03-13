@@ -81,6 +81,58 @@ HDFS 클라이언트는 사용자를 대신해서 네임노드와 데이터노�
 2. 보조 네임노드(secondary namenode) 운영  
 secondary namenode의 주 역할은 edit log가 너무 커지지 않도록 주기적으로 namespace image를 edit log와 병합하여 새로운 namespace image를 만드는 것이다. 또한 secondary namenode는 주 네임노드에 장애가 발생할 것을 대비해서 namespace image 복제본을 보관하는 역할도 맡는다.  
 
+### HDFS federation
+네임노드는 파일시스템의 모든 파일과 각 블록에 대한 참조 정보를 메모리에서 관리한다. 따라서 파일이 매우 많은 대형 클러스에서 **확장성**에 가장 큰 걸림돌이 되는 것은 바로 **메모리**다. 네임노드의 확장성 문제를 해결하기 위해 하둡은 **HDFS federation(연합체)** 을 지원하고 있다. HDFS federation을 활용하면 각각의 네임노드가 파일시스템의 네임스페이스(소속을 나타낸다?) 일부를 나누어 관리하는 방식으로 새로운 네임노드를 추가할 수 있다. (ex. namenode A는 /user 디렉터리 아래 모든 파일관리. namenode B는 /share 디렉터리 아래 모든 파일관리)  
+
+HDFS federation을 적용하면 각 네임노드는 네임스페이스의 메타데이터를 구성하는 **namespace volume**과 네임스페이스에 포함된 파일의 전체 블록을 보관하는 **block pool**을 관리한다. namespace volume은 서로 독립되어 있으며, 따라서 네임노드는 서로 통신할 필요가 없고, 특정 네임노드에 장애가 발생해도 다른 네임노드가 관리하는 네임스페이스의 가용성에 영향을 주지 않는다. 하지만 block pool의 저장소는 분리되어 있지 않다! 모든 데이터노드는 클러스터의 각 네임노드마다 등록되어 있고, 여러 block poll로부터 블록을 저장한다.
+
+### HDFS 고가용성(HA: high availability)
+※ HA: 서버와 네트워크, 프로그램 등의 정보 시스템이 상당히 오랜 기간 동안 지속적으로 정상 운영이 가능한 성질  
+※ 네임노드는 single point of failure(SPOF): 네임노드에 장애가 발생하면 맵리듀스 잡을 포함하여 모든 클라이언트가 파일을 읽거나 쓰거나 조회할 수 없게 된다.
+
+High avaliability은 active-standby 상태로 설정된 한 쌍의 네임노드로 구현된다. active namenode에 장애가 발생하면 standby namenode가 그 역할을 이어받아 큰 중단 없이 클라이언트의 요청을 처리한다.  
+- 네임노드는 edit log를 공유하기 위해 HA shared storage를 반드시 사용해야 한다. standby namenode가 활성화되면 먼저 기손 active namenode의 상태를 동기화하기 위해 공유 edit log를 읽고, 이어서 active namenode에 새로 추가된 항목도 마저 읽는다.
+- 데이터노드는 block report를 두 개의 네임노드에 보내야 한다. 블랙 매핑 정보는 디스크가 아닌 네임노드의 메모리에 보관되기 때문.
+- HA에서 standby namenode는 secondary namenode의 역할을 포함하고 있으며, active namenode namespace의 체크포인트 작업을 주기적으로 수행한다.
+
+### 데이터 흐름
+- HDFS로부터 데이터 **읽기**  
+
+<img width="450" alt="hdfs-data-flow-read" src="https://user-images.githubusercontent.com/55703132/111037294-c4e7fa80-8466-11eb-8ef6-7cafe8d05bd7.JPG">
+
+1. 클라이언트가 원하는 파일을 연다.  
+
+2. DistributedFileSystem은 파일의 첫 번째 블록 위치를 파악하기 위해 RPC을 사용하여 네임노드를 호출한다.  
+네임노드는 블록별로 해당 블록의 복제본을 가진 데이터노드의 주소를 반환. 이때 클러스터의 네트워크 위상에 따라 클라이언트와 가까운 순으로 데이터노드가 정렬 (대역폭: 동일 노드 > 동일 랙의 다른 노드 > 동일 데이터 센터에 있는 다른 랙의 노드 > 다른 데이터 센터에 있는 노드)
+<details>
+<summary>RPC (remote procedure call)</summary>
+<div markdown="1">
+
+RPC(Remote Procedure call)이란, 별도의 원격 제어를 위한 코딩 없이 다른 주소 공간에서 리모트의 함수나 프로시저를 실행 할 수 있게 해주는 프로세스간 통신.  
+즉, 위치에 상관없이 RPC를 통해 개발자는 위치에 상관없이 원하는 함수를 사용할 수 있다.
+
+운영체제를 공부하다 보며 프로세스간 통신을 위해 IPC(inter-Process Communication)을 이용하는 내용을 볼 수 있는데, RPC는 IPC 방법의 한 종류로 원격지의 프로세스에 접근하여 프로시저 또는 함수를 호출하여 사용하는 방법을 말한다.
+
+</div>
+</details>
+
+3. DFS가 FSDataInputStream을 반환. 클라이언트는 스트림을 읽기 위해 read() 메서드 호출한다.
+
+4. DFSInputStream은 가장 가까운(첫번째) 데이터노드와 연결한다. 해당 스트림에 대해 read() 메서드를 반복적으로 호출하면 데이터노드에서 클라이언트로 모든 데이터가 전송된다.
+
+5. 블록의 끝에 도달하면 DFSInputStream은 데이터노드의 연결을 닫고 다음 블록의 데이터노드를 찾는다.
+클라이언트는 스트림을 통해 블록을 순서대로 하나씩 읽는다. 클라이언트는 다음 블록의 데이터노드 위치를 얻기 위해 네임노드를 호출한다.
+
+6. 모든 블록에 대한 읽기가 끝나면 클라이언트는 close() 메서드를 호출한다.
+
+이러한 설계의 핵심은 **클라이언트는 데이터를 얻기 위해 데이터노드에 직접적으로 접촉하고, 네임노드는 각 블록에 적합한 데이터노드를 안내해준다는 것!**
+데이터 트래픽은 클러스터에 있는 모든 데이터노드에 고르게 분산되므로 HDFS는 동시에 실행되는 클라이언트의 수를 크게 늘릴 수 있다.
+
+<br>
+
+- 데이터를 HDFS에 **쓰기**
+
+<img width="450" alt="hdfs-data-flow-write" src="https://user-images.githubusercontent.com/55703132/111037865-58222f80-8469-11eb-8c89-6476f1f78504.JPG">
 
 
 ## 3. YARN
