@@ -158,10 +158,95 @@ RPC(Remote Procedure call)이란, 별도의 원격 제어를 위한 코딩 없�
 
 복제본 배치
 
-<img width="300" alt="replication_pipeline" src="https://user-images.githubusercontent.com/55703132/111065116-6a4cae00-84fb-11eb-89be-97c06b13f6ee.jpg">
+<img width="300" alt="replication_pipeline" src="https://user-images.githubusercontent.com/55703132/111065116-6a4cae00-84fb-11eb-89be-97c06b13f6ee.jpg" />
 
 첫 번째 복제본을 클라이언트와 같은 노드에 배치한다 (만약 클라이언트가 클러스터 외부에 있으면(데이터노드가 아니면) 무작위로 노드 선택). 두 번째 복제본은 첫 번째 노드와 다른 랙의 노드에 배치된다. 세 번째 복제본은 두 번째 노드와 같은 랙의 다른 노드에 배치된다. 그 이상의 복제본은 클러스터에서 무작위로 선택하여 배치한다.  
 
 
 ## 3. YARN
 클러스터 자원 관리 시스템. (Yet Another Resource Negotiator)
+
+<img width="400" alt="yarn_application" src="https://user-images.githubusercontent.com/55703132/111068567-9f153100-850c-11eb-8e93-fdae38bb4f0b.png" />
+
+맵리듀스, 스파크 등과 같은 분산 컴퓨팅 프레임워크는 클러스터 계산 계층(YARN)과 클러스터 저장 계층(HDFS와 HBase) 위에서 **YARN Application**을 실행한다.
+
+### YARN Application 수행
+YARN은 두 가지 유형의 장기 실행 데몬을 통해 핵심 서비스를 제공한다.  
+**클러스터에서 유일**한 **Resource Manager**는 클러스터 전체 자원의 사용량을 관리.   
+**모든 머신에서** 실행되는 **Node Manager**는 **컨테이너**를 구동하고 모니터링하는 역할.  
+
+- YARN이 Application을 구동하는 방식
+
+<img width="450" alt="yarn이 application을 구동하는 방식" src="https://user-images.githubusercontent.com/55703132/111069459-8149cb00-8510-11eb-9fc8-6859d5961b1d.png" />
+
+1. 클라이언트는 YARN에서 애플리케이션을 구동하기 위해 Resource Manager에 접속하여 **Application Master** 프로세스의 구동을 요청한다.
+
+2. RM는 컨테이너에서 Application Master(map-reduce job당 하나)를 시작할 수 있는 Node Manager를 하나 찾는다.
+AM가 딱 한 번만 실행될지는 애플리케이션에 따라 다르다. AM가 단순한 계산을 단일 컨테이너에서 수행하고 그 결과를 클라이언트에 반환한 후 종료되거나, 
+<details>
+<summary>Application Master</summary>
+<div markdown="1">
+
+하나의 프로그램에 대한 마스터 역할을 수행하며, 스케줄러로부터 적절한 컨테이너를 할당 받고, 프로그램 실행 상태를 모니터링하고 관리한다.
+
+</div>
+</details>
+
+3. RM에 더 많은 컨테이너를 요청한 후
+
+4. 분산 처리를 수행하는 경우도 있다.
+
+<br>
+
+- 자원 요청
+YARN 애플리케이션은 실행 중에는 아무 때나 자원 요청을 할 수 있다.
+   - 처음에 모든 요청   
+   스파크는 클러스터에서 고생 개수의 executor를 시작한다.
+   - 유동적인 접근이 필요한 경우, 애플리케이션의 요구에 따라 동적으로 자원을 추가로 요청   
+   맵리듀스는 두단계. 처음에 필요한 맵 태스크 컨터에너를 요청한다. 맵 태스크가 어느 정도 실행된 후에 리듀스 태스크 컨테이너가 시작될 수 있다.
+   
+### YARN과 맵리듀스1의 차이점
+※ 하둡1과 그 이전버전의 맵리듀스 분산 구현은 '맵리듀스 1'로, YARN(하둡 2와 이후 버전)을 이용한 구현은 '맵리듀스 2'로 구분해서 언급한다.
+
+MapReduce 1과 YARN 컴포넌트 비교  
+|MapReduce 1|YARN|
+|------|---|
+|Job tracker|Resource Manager, Application Master, Timeline server|
+|Task tracker|Node Manager|
+|Slot|Container|
+
+- Job tracker   
+여러 Task tracker에서 실행되는 태스크를 스케줄링함으로써 시스템에서 실행되는 모든 Job을 조율한다.   
+Job scheduling : Task와 Task tracker를 연결.   
+태스크 진행 모니터링 : 태스크를 추적하고, 실패하거나 느린 태스크를 다시 시작하고, 전체 카운터를 유지하는 방법으로 태스크 장부(bookeeping)를 기록한다.  
+YARN은 이러한 역할을 RM와 AM를 통해 처리한다.
+
+- Task tracker   
+태스크를 실행하고 진행 상황을 job tracker에 전송하기 때문에 job tracker는 각 jbo의 전체적인 진행 상황을 파악할 수 있다.
+
+<br>
+
+YARN을 사용하여 얻을 수 있는 이익
+- 확장성
+RM과 AM를 분리하는 구조이므로, 노드와 태스크 확장 가능.
+
+- 가용성
+job tracker의 메모리에 있는 복잡한 상태 정보가 매우 빠르게 변경되는 상황에서 job tracker 서비스에 HA를 적용하는 것은 매우 어려운 일이다. 각 태스크의 상태는 수 초마다 변경되기 때문이다.  
+job tracker의 역할이 YARN에서는 RM와 AM로 분리되었기 때문에 HA 적용 가능하다. RM와 맵리듀스 잡을 위한 AM 모두에 HA를 제공한다.
+
+- 효율성
+MapReduce 1에서 각 task tracker는 map slot과 reduce slot으로 구분된 고정 크기 'slot'의 정적 할당 설정을 가지고 있다. map slot은 map task 실행에만, reduce slot은 reduce task 에만 사용할 수 있다.  
+YARN에서 Nodce Manager는 정해진 개수의 슬록 대신 일종의 리소스 풀을 관리한다. YARN의 자원을 잘게 쪼개져 있기 때문에 애플리케이션은 필요한 만큼의 자원을 요청할 수 있다. 기존에는 개별 슬롯을 사용했기 때문에 특정 태스크를 위해 너무 많거나(자원 낭비) 너무 적게(실패의 원인) 자원을 할당했다.
+
+### YARN scheduling
+- FIFO   
+대형 잡이 완료될 때까지 작은 잡은 계속 대기해야 한다.
+- Capacity   
+작은 잡이 제출되는 즉시 분리된 전용 큐에서 처리해준다. 해당 큐는 잡을 위한 자원을 미리 예약해두기 때문에 전체 클러스터의 효율성은 떨어진다. 또한 대형 잡은 FIFO 스케줄러보다 늦게 끝나게 된다.  
+회사에서 각 조직이 전체 클러스터의 지정된 가용량을 미리 할당받는 것이다.
+- Fair  
+실행 중인 모든 잡의 자원을 동적으로 분배하기 때문에 미리 자원의 가용량을 예약할 필요가 없다.
+
+<img width="270" alt="FIFO_scheduler" src="https://user-images.githubusercontent.com/55703132/111071180-43e93b80-8518-11eb-85d8-e58e0cfa2eb2.JPG" /> <img width="270" alt="Capacity_scheduler" src="https://user-images.githubusercontent.com/55703132/111071183-477cc280-8518-11eb-8296-c00b37fd04f4.JPG" /> <img width="270" alt="Fair_scheduler" src="https://user-images.githubusercontent.com/55703132/111071185-49df1c80-8518-11eb-8fb9-5ec986ced4df.JPG" />
+
+
