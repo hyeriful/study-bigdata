@@ -40,11 +40,52 @@ Map에서 출력된 데이터에서 중복 데이터를 제거하고 원하는 �
 
 하둡은 HDFS 내의 입력 데이터가 있는 노드에서 맵 태스크를 실행할 때 가장 빠르게 작동한다(a). 이를 **data locality optimization(데이터 지역성 최적화)** 라고 하는데, 클러스터의 중요한 공유자원인 네트워크 대역폭을 사용하지 않는 방법이다. 그러나 맵 태스크의 입력 스플릿에 해당하는 HDFS 블록 복제본이 저장된 세 개의 노드 모두 다른 맵 태스크를 실행하여 여유가 없는 상황(데이터 지역성을 위한 가용 슬롯이 없는)이 발생할 수도 있다. 이런 상황에서 잡 스케줄러는 블록 복제본이 저장된 동일 랙에 속한 다른 노드에서 가용한 맵 슬롯을 찾는다(b). 또한 아주 드문 일이지만 데이터 복제본이 저장된 노드가 없는 외부 랙의 노드가 선택될 수도 있는데, 이때에는 랙 간 네트워크 전송이 불가피하게 일어난다(c).
 
-<img width="350" alt="맵 태스크" src="https://user-images.githubusercontent.com/55703132/110323875-90d09c00-8058-11eb-8c5f-2a25bdaa6fad.png">
+<img width="350" alt="맵 태스크" src="https://user-images.githubusercontent.com/55703132/110323875-90d09c00-8058-11eb-8c5f-2a25bdaa6fad.png" />
 
 맵 태스크 결과는 HDFS가 아닌 로컬 디스크에 저장된다. 리듀스의 결과는 HDFS애 저장된다.
 리듀스 태스크로 모든 결과를 보내기 전에 맵 태스크가 실패한다면 하둡은 자동으로 해당 맵 태스크를 다른 노드에 할당하여 맵의 출력을 다시 생성할 것이다. 리듀스 태스크는 일반적으로 모든 매퍼의 출력 결과를 입력으로 받기 때문에 데이터 지역성의 장점이 없다. 정렬된 맵의 모든 결과는 네트워크를 통해 일단 리듀스 태스크가 실행 중인 노드로 전송되고, 맵의 모든 결과를 병합 후 사용자 정의 리듀스 함수로 전달된다.  
 리듀스 출력에 대한 HDFS 블록의 첫번째 복제본은 로컬 노드에 저장되고, 나머지 복제본은 외부 랙에 저장된다.
+
+### 맵리듀스 잡 실행 상세분석 ⭐
+[[여기]](#yarn-application-수행) 같이 참고  
+- **클라이언트** : 맵리듀스 잡을 제출
+- **YARN Resource Manager** : 클러스터 상에 계산 리소스의 할당을 제어
+- **YARN Node Manager** : 클러스터의 각 머신에서 계산 컨테이너를 시작하고 모니터링
+-  **MapReduce Application Master** : 맵리듀스 잡ㅇ르 수행하는 각 Task를 제어. AM와 MapReduce task는 컨테이너 내에서 실행되며, RM는 잡을 할당하고 NM는 태스크를 관리하는 역할을 맡는다.
+-  **Distributed FileSystem** : 다른 단계 간에 잡 리소스 파일들을 공유하는 데 사용된다(보통 HDFS 사용)
+
+
+하둡이 맵리듀스 잡을 실행하는 방식  
+<img width="700" alt="하둡이 맵리듀스 잡을 실행하는 방식" src="https://user-images.githubusercontent.com/55703132/111122418-611e1880-85b1-11eb-8e3f-dcb7e8c34185.JPG" />
+
+1. 클라이언트에서 맵리듀스 잡을 실행한다.
+
+2. Resource Manager에 맵리듀스 잡ID로 사용될 새로운 애플리케이션 ID를 요청한다.   
+잡의 출력 명세를 확인한다. 예를 들어 출력 디렉터리가 지정되지 않았거나 이미 존재한다면 해당 잡은 제출되지 않고 맵리듀스 프로그램에 에러를 전달한다.   
+잡읜 입력 스플릿(input split)을 계산한다. 스플릿을 계산할 수 없다면(예를 들어 입력 경로가 없다면) 잡은 제출되지 않고 맵리듀스 프로그램에 에러를 전달한다.
+
+3. 잡 실행에 필요한 잡 JAR 파일, 환경 설정 파일, 계산된 입력 스플릿 등의 잡 리소스를 공유 파일시스템에 있는 해당 잡 ID 이름의 디렉터리에 복사한다.
+
+4. RM를 호출하여 잡을 제출한다.
+
+5. RM가 YARN 스케줄러에 요청을 전달한다. 스케줄러는 컨테이너를 하나 할당하고, RM는 NM의 운영 규칙에 따라 AM process를 시작한다.
+
+6. AM는 잡을 초기화할 대 잡의 진행 상태를 추적하기 위한 다수의 bookkeeping(장부) 객체를 생성하고, 이후 각 태스크로부터 진행 및 종료 보고서를 받는다.
+
+7. 클라이언트가 계산한 입력 스플릿 정보를 공유 파일시스템에서 읽어온다.  
+입력 스플릿 별로 맵 태스크 객체를 생성한다.  
+
+AM는 맵리듀스 잡을 구성하는 태스크를 실행할 방법을 결정해야 한다. (잡의 크기가 작다면 AM는 태스크를 자신의 JVM에서 실행할 수도 있다 => 잡이 우버되었다. 우버 태스크로 실행된다.)   
+
+8. 잡을 우버 태스크로 실행하기 적합하지 않다면 AM는 RM에 잡의 모든 맵과 리듀스 태스크를 위해 컨테이너를 요청한다. RM의 스케줄러가 특정 노드 상의 컨테이너를 위한 리소스를 태스크에 할당하면 
+
+9. AM는 NM와 통신하며 컨테이너를 시작한다.
+
+10. 태스크를 실행하기 전에 잡 환경 설정, JAR파일, 분산 캐시와 관련된 파일 등 필요한 리소스를 로컬로 가져와야 한다.
+
+11. 최종적으로 맵과 리듀스 태스크를 실제 실행한다.  
+(리듀스 태스크는 클러스터 어드 곳에서도 실행될 수 있지만, 맵 태스크 요청은 스케줄러가 최대한 준수하는 [data locality](#데이터-흐름) 제약이 있다.)
+
 
 ## 2. HDFS (Hadoop Distributed FileSystem)
 분산 파일 시스템이란?  
@@ -98,7 +139,7 @@ High avaliability은 active-standby 상태로 설정된 한 쌍의 네임노드�
 ### 데이터 흐름
 - HDFS로부터 데이터 **읽기**  
 
-<img width="450" alt="hdfs-data-flow-read" src="https://user-images.githubusercontent.com/55703132/111037294-c4e7fa80-8466-11eb-8ef6-7cafe8d05bd7.JPG">
+<img width="500" alt="hdfs-data-flow-read" src="https://user-images.githubusercontent.com/55703132/111037294-c4e7fa80-8466-11eb-8ef6-7cafe8d05bd7.JPG">
 
 1. 클라이언트가 원하는 파일을 연다.  
 
@@ -132,7 +173,7 @@ RPC(Remote Procedure call)이란, 별도의 원격 제어를 위한 코딩 없�
 
 - 데이터를 HDFS에 **쓰기**
 
-<img width="450" alt="hdfs-data-flow-write" src="https://user-images.githubusercontent.com/55703132/111037865-58222f80-8469-11eb-8c89-6476f1f78504.JPG">
+<img width="500" alt="hdfs-data-flow-write" src="https://user-images.githubusercontent.com/55703132/111037865-58222f80-8469-11eb-8c89-6476f1f78504.JPG">
 
 1. create()를 호출하여 파일을 생성한다.
 
@@ -177,7 +218,7 @@ YARN은 두 가지 유형의 장기 실행 데몬을 통해 핵심 서비스를 
 
 - YARN이 Application을 구동하는 방식
 
-<img width="450" alt="yarn이 application을 구동하는 방식" src="https://user-images.githubusercontent.com/55703132/111069459-8149cb00-8510-11eb-9fc8-6859d5961b1d.png" />
+<img width="500" alt="yarn이 application을 구동하는 방식" src="https://user-images.githubusercontent.com/55703132/111069459-8149cb00-8510-11eb-9fc8-6859d5961b1d.png" />
 
 1. 클라이언트는 YARN에서 애플리케이션을 구동하기 위해 Resource Manager에 접속하여 **Application Master** 프로세스의 구동을 요청한다.
 
@@ -218,7 +259,7 @@ MapReduce 1과 YARN 컴포넌트 비교
 - Job tracker   
 여러 Task tracker에서 실행되는 태스크를 스케줄링함으로써 시스템에서 실행되는 모든 Job을 조율한다.   
 Job scheduling : Task와 Task tracker를 연결.   
-태스크 진행 모니터링 : 태스크를 추적하고, 실패하거나 느린 태스크를 다시 시작하고, 전체 카운터를 유지하는 방법으로 태스크 장부(bookeeping)를 기록한다.  
+태스크 진행 모니터링 : 태스크를 추적하고, 실패하거나 느린 태스크를 다시 시작하고, 전체 카운터를 유지하는 방법으로 태스크 장부(bookkeeping)를 기록한다.  
 YARN은 이러한 역할을 RM와 AM를 통해 처리한다.
 
 - Task tracker   
