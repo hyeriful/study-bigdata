@@ -21,6 +21,19 @@ RDBMS는 수 밀리초 ~ 수 초 정도의 짧은 응답시간을 요구하고, 
 rack은 물리적으로 같은 network의 switch에 모두 연결 되어 있다. 그렇기 때문에 두 노드의 대역폭은 다른 rack에 있는 노드보다 크게 된다. 즉 데이터의 이동을 할 수 있는 폭이 크기 때문에 데이터 속도가 빠르다. network의 다른 switch에 연결되어 있는 rack으로 인해 성능저하가 발생할 수 있다.
 <img width="472" alt="hadoop cluster" src="https://user-images.githubusercontent.com/55703132/110307981-e26e2c00-8042-11eb-9134-5f345a3caa68.png">
 
+<br>
+
+## 💻 공부할 내용
+
+### 1. [MapReduce](#1-맵리듀스)
+### 2. [HDFS](#2-hdfs-hadoop-distributed-filesystem)
+### 3. [YARN](#3-yarn)
+### 4. [하둡 운영 및 관리](#4-하둡-운영-및-관리)
+
+<br>
+
+---
+
 ## 1. 맵리듀스
 대용량의 데이터 처리를 위한 분산 병렬 프로그래밍 모델, 소프트웨어 프레임워크  
 맵 리듀스 프레임워크를 이용하면 대규모 분산 컴퓨팅 환경에서 대량의 데이터를 병렬로 분석 가능  
@@ -376,7 +389,7 @@ Kerberos를 사용할 때 클라이언트가 이 서비스를 이용하려면 �
 
 edits log 파일은 무한정 커질 수 있고 네임노드가 구동 중일 때는 특별한 영향을 주지 않지만, 네임노드가 재시작될 경우 매우 큰 edits log의 변경 내역을 모두 적용하기 위해서는 상당한 시간이 걸린다. 이러한 문제의 해결책은 secondary namenode를 운영하는 것이다. **Secondary Namenode의 용도는 Primary Namenode의 메모리에 있는 파일시스템 메타데이터의 체크포인트를 만드는 것이다.** 체크포인팅 작업의 절차는 다음과 같다.
 
-<img width="600" alt="checkpointing_procedure" src="https://user-images.githubusercontent.com/55703132/111279106-ae67bc00-867d-11eb-813e-09bb02b370ec.JPG" />
+<img width="500" alt="checkpointing_procedure" src="https://user-images.githubusercontent.com/55703132/111279106-ae67bc00-867d-11eb-813e-09bb02b370ec.JPG" />
 
 1. secondary namenode(보조 네임노드)는 primary namenode(주 네임노드)에 사용 중인 edits 파일을 순환할 것을 요청한다. 이제부터 새로 발생하는 edits log는 새로운 파일에 저장된다.
 2. secondary namenode는 HTTP GET 방식으로 primary namenode에 있는 최신 fsimage와 edits 파일을 가져온다.
