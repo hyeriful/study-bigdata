@@ -58,7 +58,7 @@ ex. 해당 연도에 최고기온 구하기
 
 <br>
 
-❗ 아래 맵리듀스에 관한 내용은 [HDFS](2.-hdfs-(hadoop-distributed-filesystem))와 [YARN](3.-yarn)을 보고난 후 다시 보자 ❗
+❗ 아래 맵리듀스에 관한 내용은 [HDFS](#2-hdfs-hadoop-distributed-filesystem)와 [YARN](#3-yarn)을 보고난 후 다시 보자 ❗
 
 ### 맵리듀스 잡 실행 상세분석 ⭐
 [[여기]](#yarn-application-수행) 같이 참고  
@@ -249,7 +249,7 @@ RPC(Remote Procedure call)이란, 별도의 원격 제어를 위한 코딩 없�
 
 5. DFSOutputStream은 데이터노드의 승인 여부를 기다리는 **ack queue**라 불리는 내부 패킷 큐를 유지한다. ack queue에 있는 패킷은 파이프라인의 모든 데이터노드로부터 ack 응답을 받아야 제거된다.
 
-6. 데이터 쓰기를 ㅗ안료할 때 클라이언트는 close() 메서드를 호출한다.
+6. 데이터 쓰기를 완료할 때 클라이언트는 close() 메서드를 호출한다.
 
 7. 데이터노드 파이프라인에 남아 있는 모든 패킷을 flush하고 승인이 나기를 기다린다. 모든 패킷이 완전히 전송되면 네임노드에 'file is complete' 신호를 보낸다.
 
