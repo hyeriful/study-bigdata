@@ -2,5 +2,5 @@
 
 ### Big Data
 
-- [Hadoop](https://github.com/hyeriful/study-bigdata/tree/main/Hadoop)
-- [Spark](https://github.com/hyeriful/study-bigdata/tree/main/Spark)
+- [Hadoop](https://github.com/hyeriful/study-bigdata/tree/master/Hadoop)
+- [Spark](https://github.com/hyeriful/study-bigdata/tree/master/Spark)
