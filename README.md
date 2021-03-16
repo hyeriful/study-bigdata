@@ -349,4 +349,37 @@ YARN에서 Nodce Manager는 정해진 개수의 슬록 대신 일종의 리소�
 
 <img width="270" alt="FIFO_scheduler" src="https://user-images.githubusercontent.com/55703132/111071180-43e93b80-8518-11eb-85d8-e58e0cfa2eb2.JPG" /> <img width="270" alt="Capacity_scheduler" src="https://user-images.githubusercontent.com/55703132/111071183-477cc280-8518-11eb-8296-c00b37fd04f4.JPG" /> <img width="270" alt="Fair_scheduler" src="https://user-images.githubusercontent.com/55703132/111071185-49df1c80-8518-11eb-8fb9-5ec986ced4df.JPG" />
 
+<br>
 
+## 4. 하둡 운영 및 관리
+### 보안 - Kerberos와 Hadoop  
+Kerberos : **티켓(ticket)** 을 기반으로 동작하는 컴퓨터 네트워크 인증 암호화 프로토콜   
+비보안 네트워크에서 통신하는 노드가 보안 방식으로 다른 노드에 대해 식별할 수 있게 허용한다.  
+
+Kerberos를 사용할 때 클라이언트가 이 서비스를 이용하려면 각 단계에서 서버와의 메시지 교환을 수반하는 다음 세 단계를 거쳐야 한다.  
+1. **인증.**    
+클라이언트는 인증 서버에 자신을 인증한다. 그리고 시간 정보가 포함된 티켓-승인 티켓 Ticket-Granting Ticket(TGT)을 수신한다.
+
+2. **권한 부여.**   
+클라이언트는 TGT를 이용하여 티켓 승인 서버에 서비스 티켓을 요청한다.
+
+3. **서비스 요청.**    
+클라이언트는 서비스 티켓을 이용하여 클라이언트가 사용할 서비스를 제공하는 서버에 자신을 인증한다. 하둡의 경우 이 서버는 Name node나 Resource Manager가 될 것이다.
+
+<img width="600" alt="kerberos 티켓 교환 프로토콜의 3단계 절차" src="https://user-images.githubusercontent.com/55703132/111272080-7492b780-8675-11eb-9c24-e5550d2ae147.jpg" />
+
+### FSImage and Edits log
+파일시스템의 클라이언트가 **쓰기** 동작을 하면 일단 edits log에 해당내역이 기록된다. 네임노드는 파일시스템의 메타데이터를 in-memory(파일과 메모리 양쪽에 데이터를 유지하는 방식)로 관리하는데, edits log를 먼저 변경한 후 메모리상의 메타데이터도 변경한다. 클라이언트의 **읽기** 요청에는 in-memory 메타데이터만 사용된다.   
+
+네임노드는 쓰기 동작이 끝날 때마다 성공했다는 결과를 클라이언트에 알려주기 전에, 변경 내역에 대해 edits log를 flush하여 동기화시킨다.   
+파일시스템에서 쓰기 동작이 있을 때마다 fsimage 파일을 변경하지 않는데, fsimage 파일이 기가바이트 크기로 커지면 성능이 매우 느려지기 때문이다. 만약 네임노드에 장애가 발생하면 먼저 fsimage를 메모리에 로드하고 edits log 파일에서 특정 지점 이후에 발생한 변경 내역들을 메모리에 반영하여 파일시스템의 메타데이터를 최신 상태로 복원할 수 있다.
+
+edits log 파일은 무한정 커질 수 있고 네임노드가 구동 중일 때는 특별한 영향을 주지 않지만, 네임노드가 재시작될 경우 매우 큰 edits log의 변경 내역을 모두 적용하기 위해서는 상당한 시간이 걸린다. 이러한 문제의 해결책은 secondary namenode를 운영하는 것이다. **Secondary Namenode의 용도는 Primary Namenode의 메모리에 있는 파일시스템 메타데이터의 체크포인트를 만드는 것이다.** 체크포인팅 작업의 절차는 다음과 같다.
+
+<img width="600" alt="checkpointing_procedure" src="https://user-images.githubusercontent.com/55703132/111279106-ae67bc00-867d-11eb-813e-09bb02b370ec.JPG" />
+
+1. secondary namenode(보조 네임노드)는 primary namenode(주 네임노드)에 사용 중인 edits 파일을 순환할 것을 요청한다. 이제부터 새로 발생하는 edits log는 새로운 파일에 저장된다.
+2. secondary namenode는 HTTP GET 방식으로 primary namenode에 있는 최신 fsimage와 edits 파일을 가져온다.
+3. secondary namenode는 fsimage 파일을 메모리에 올리고 edits 파일의 각 변경 내역을 적용한다. 그리고 병합된 새로운 fsimage 파일을 생성한다.
+4. secondary namenode는 새로운 fsimage 파일을 HTTP PUT 방식으로 primary namenode에 전송하고, primary namenode는 받은 파일을 .ckpt라는 확장자를 가진 임시 파일로 저장한다.
+5. primary namenode는 임시 저장한 fsimage 파일의 이름을 변경하여 사용 가능하게 만든다.
