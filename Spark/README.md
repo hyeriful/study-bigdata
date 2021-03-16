@@ -1,1 +1,202 @@
 # Spark
+**인메모리 기반의 대용량 데이터 병렬 처리 오픈소스 엔진으로, 범용 분산 클러스터 컴퓨팅 프레임워크**
+
+<br>
+
+#### 하둡과 스파크   
+
+하둡과 스파크 모두 빅데이터 처리 프레임워크라는 공통점이 있지만, 하둡은 대량의 데이터를 서버 클러스터 내 복수의 노드들에 분산시키는 역할을 한다. 스파크는 저장소 시스템의 데이터를 연산하는 역할만 수행할 뿐 영구 저장소 역할은 수행하지 않는다.
+
+하둡과 아파치는 상호 독립적, 상호 보완적이다. 하둡은 HDFS와 맵리듀스를 핵심 구성요소로 제공하므로 스파크를 필수적으로 필요로 하지 않는다. 반대로 스파크도 하둡을 필수적으로 필요로 하지 않는다.다. Amazon S3, Apache Cassandra 등을 저장소로 지원하기 때문이다. 그러나 이 둘은 함께 할 때 좋은 궁합을 보인다.
+
+데이터 운영 및 리포팅 요구 대부분이 정적인 것이고, 배치 모드의 프로세싱을 기다릴 수 있다면, 굳이 스파크를 쓰지 않고 맵리듀스 프로세싱 방식을 채택해도 무방하다. 스파크가 필수적인 비즈니스는 실시간으로 수집되는 스트리밍 데이터를 처리하거나, 머신러닝 알고리즘과 같이 애플리케이션이 복합적인 운영을 필요로 하는 경우이다. 또 스파크의 속도는 맵리듀스의 속도보다 월등히 빠르다.
+
+<br>
+
+## 스파크에 대해 간단하게 시작하기
+### Spark Application
+스파크 애플리케이션은 **driver** 프로세스와 다수의 **executor** 프로세스로 구성된다.  
+**driver** : 스파크 애플리케이션 정보의 유지 관리, 사용자 프로그램이나 입력에 대한 응답, 전반적인 executor process 작업과 관련된 분석, 배포 그리고 스케줄링 (사용자의 스파크 어플리케이션을 여러 노드로 분산하여 처리 할 수 있게 변환).  
+**executor** : driver process가 할당한 작업을 수행. 즉, driver가 할당한 코드를 실행하고 진행 상황을 다시 driver 노드에 보고.
+
+<br>
+
+The architecture of a Spark Application   
+
+<img width="400" src="https://user-images.githubusercontent.com/55703132/111318820-bee15c00-86a8-11eb-9a1a-84d021c4be3f.png" />
+
+<br>
+
+핵심 !!
+- 스파크는 사용 가능한 자원을 파악하기 위해 클러스터 매니저(spark standlone, hadoop yarn, mesos)를 사용한다.
+- driver process는 주어진 작업을 완료하기 위해 드라이버 프로그램의 명령을 executor에서 실행할 책임이 있다.
+
+<details>
+<summary>SparkSession</summary>
+<div markdown="1">
+
+**SparkSession**  
+스파크 애플리케이션은 **SparkSession**이라 불리는 driver process로 제어한다. 하나의 SparkSession은 하나의 스파크 애플리케이션에 대응한다.
+
+</div>
+</details>
+<br>
+
+### Transformation and Action
+DataFrame or RDD를 '변경'하려면 **transformation**을 실행한다. (이해를 돕기 위한 transformation, action 메서드는 [여기](https://www.tutorialspoint.com/apache_spark/apache_spark_core_programming.htm)를 참고하라)   
+transformation에는 두가지 유형이 있다.
+
+![narrow transformation and wide transformation](https://user-images.githubusercontent.com/55703132/111321494-5182fa80-86ab-11eb-9e6a-39f627e3c33d.JPG)
+
+**transformation**을 사용해 **논리적 실행 계획**을 세우고 **실제 연산을 수행하려면 action 명령을 내려야 한다.** - **lazy evaluation** (지연 연산)
+
+<br>
+
+## 구조적 API
+구조적 API - DataFrame, SQL, Dataset  
+- 사용자가 정의한 다수의 transformation은 DAG(directed acyclic graph)로 표현되는 명령을 만들어낸다.
+- action은 하나의 잡을 클러스터에서 실행하기 위해 stage와 task로 나누고 DAG 처리 프로세스를 실행한다.
+- transformation과 action을 다루는 논리적 구조가 DataFrame과 Dataset이다.
+
+### DataFrame과 Dataset
+DataFrame과 Dataset은 다양한 데이터 타입의 테이블형 데이터를 보관할 수 있는 Row 타입의 객체로 구성된 분산 컬렉션(수천 대의 컴퓨터에 분산되어 있다)이다.
+
+- DataFrame과 Dataset 비교
+   - df는 스키마에 명시된 데이터 타입의 일치여부를 런타임에 확인하고, ds는 컴파일 타임에 확인한다.
+   - ds는 scala, java에서만 지원하며 python, R에서는 지원하지 않는다.
+   - DataFrame은 Row 타입으로 구성된 Dataset이다.
+
+- Schema
+   - 스키마는 DataFrame의 컬럼명과 데이터 타입을 정의한다.
+   - 스키마는 데이터소스에서 얻거나 직접 정의할 수 있다.
+
+### 구조적 API 실행 과정
+1. 코드 작성
+2. 스파크가 코드를 **논리적 실행 계획**으로 변환
+3. 스파크가 **논리적 실행 계획을 물리적 실행 계획으로** 변환하며 그 과정에서 추가적인 **최적화**를 할 수 있는지 확인
+4. 스파크는 클러스터에서 **물리적 실행 계획(RDD 처리)** 을 실행
+
+카탈리스트 옵티마이저가 코드를 넘겨 받고 실제 실행 계획을 생성한다.  
+
+<img width="400" src="https://user-images.githubusercontent.com/55703132/111328741-db35c680-86b1-11eb-85ca-285ee6ad68ea.png" />
+<br>
+
+- **논리적 실행 계획**   
+<img width="600" alt="논리적 실행계획" src="https://user-images.githubusercontent.com/55703132/111329127-39fb4000-86b2-11eb-8896-b8e8073af05a.png">
+
+논리적 실행 계획 단계에서는 추상적인 transformation만 표현된다. 필요한 컬럼과 테이블이 카탈로그에 있는지 검증하고 이 결과를 catalyst optimizer로 전달된다. catalyst optimizer는 논리적 실행 계획을 최적화하는 규칙의 모음이다.
+
+- **물리적 실행 계획 (스파크 실행 계획)**   
+<img width="600" alt="물리적 실행계획" src="https://user-images.githubusercontent.com/55703132/111329967-e1787280-86b2-11eb-85c0-d6c249768515.png">
+
+논리적 실행 계획을 클러스터 환경에서 실행하는 방법을 정의한다. 다양한 물리적 실행 전략을 생성하고 비용 모델을 이용해서 비교한 후 최적의 전략을 선택한다.   
+물리적 실행 계획은 일련의 RDD와 transformation으로 변환된다. 스파크는 DataFrame, Dataset, SQL로 정의된 쿼리를 RDD transformation으로 컴파일한다.
+
+<br>
+
+## 저수준 API
+저수준 API - RDD, SparkContext, accumulator, broadcast variable   
+
+**RDD** (Resilient Distributed Datasets 탄력적 분산 데이터셋) : immutable distributed collection of objects. spark의 기본 데이터 구조.   
+
+<img width="546" alt="rdd" src="https://user-images.githubusercontent.com/55703132/111334697-21d9ef80-86b7-11eb-8e81-5c261725dda6.png">
+
+RDD에 있는 각각 데이터셋은 클러스터의 다른 노드에서 계산 될 수 있는 logical partitions로 나뉜다.   
+즉, 하나의 작업을 처리할 때 파티션 단위로 나눠서 병렬로 처리한다.   
+`스파크는 모든 executor가 병렬로 작업을 수행할 수 있도록 '파티션'이라 불리는 chunk 단위로 데이터를 분할한다. 파티션은 클러스터의 물리적 머신에 존재하는 row의 집합을 의미한다.`
+
+구조적 API와 다르게 내부 구조를 스파크에서 파악할 수 없으므로 최적화를 하려면 훨씬 많은 수작업 필요하다. RDD는 DataFrame API에서 최적화된 물리적 실행 계획을 만드는 데 대부분 사용된다. 사용자가 실행한 모든 Dataframe나 Dataset 코드는 RDD로 컴파일된다.
+
+<br>
+
+- RDD, DataFrame, Dataset 공통점 : 불변성, 인메모리, 탄력성, 분산컴퓨팅       
+
+- 차이점   
+
+||RDD|DataFrame|Dataset|
+|--------|--------|--------|--------|
+|Data Formats|structured(RDB, csv),<br>unstructured(영상,이미지,음성) data<br>& 스키마 추론 불가능|structured,<br>semi-structured(json, html, xml) data|structured, unstructured data|
+|Compile-time type safety|O|X (run-time)|O|
+|Serialization|Java serialization<br>(개별 java, scala objects를 직렬화하는 overhead는 비용이 많이들고 노드간에 data와 structure를 모두 전송해야 한다)|데이터를 binary형식의 off-heap storage (in memory)로 직렬화 한 다음, spark가 schema를 이해하므로 off heap memory에서 많은 transformation을 수행할 수 있다.||
+|Garbage Collection|O|X|X|
+|Efficiency/Memory use|많은 시간이 걸리는 java, scala 객체에서 개별적으로 직렬화를 수행하면 효율성이 저하된다.|직렬화를 위해 off heap memory를 사용해서 overhead가 줄어든다. byte code를 동적으로 생성하여 직렬화된 데이터에 대해 많은 연산을 수행한다.||
+|Lazy Evalution|O|O|O|
+
+
+<details>
+<summary>참고할 여러 개념들</summary>
+<div markdown="1">
+
+### 컴파일 타임과 런타임
+Compile time : 개발자가 소스코드를 작성하고 컴파일이라는 과정을 통해 기계어코드로 변환 되어 실행 가능한 프로그램이 되며, 이러한 편집 과정을 컴파일타임(Compiletime) 이라고 부른다.
+Run time : 컴파일 과정을 마친 응용 프로그램이 사용자에 의해서 실행되어 지는 때(time)를 의미한다.
+
+### 직렬화와 역직렬화
+- 직렬화(serialization)   
+메모리를 디스크에 저장하거나 네트워크 통신에 사용하기 위한 형식으로 변환하는 것을 말한다.
+- 역직렬화(deserialization)   
+직렬화의 반대로 디스크에 저장한 데이터를 읽거나, 네트워크 통신으로 받은 데이터를 메모리에 쓸 수 있도록 다시 변환하는 것이다. 
+
+앞서 얘기한대로 직렬화는 데이터를 저장 혹은  통신에 사용하기 위함인데 **데이터를 그냥 사용하면 안되고 왜 직렬화라는 과정을 거쳐야 할까?**   
+
+**직렬화는 왜 필요한가? 사용이유**  
+
+우선 메모리(힙, 스택 영역 등)에 대한 기본적인 지식이 있어야 이해가 가능하다.  
+
+개발 언어로 무엇을 사용하던(C++, C, JAVA etc..) 사용하는 데이터들의 메모리 구조는 크게 2가지로 나뉜다.  
+**1. 값 형식 데이터(Value Type)** : 우리가 흔히 선언해서 사용하는 int, float, char 등 값 형식 데이터들은 스택에 메모리가 쌓이고 직접 접근이 가능하다.  
+**2. 참조 형식 데이터(Reference Type)** : C#에서 Object 타입 혹은 C++에서 포인터 변수들이 여기에 해당된다. 해당 형식의 변수를 선언하면 힙에 메모리가 할당되고 스택에서는 이 힙 메모리를 참조하는(힙의 메모리 번지 주소를 가지고 있음) 구조로 되어있다.  
+
+이 두가지 데이터 중에서 **디스크에 저장하거나 통신에는 값 형식 데이터(Value Type)만 가능**하다.  
+참조 형식 데이터(Reference Type)는 실제 데이터 값이 아닌 힙에 할당되어 있는 메모리 번지 주소를 가지고 있기 때문에 저장, 통신에 사용할 수 없다.  
+
+**왜 참조 형식 데이터는 사용할 수 없을까?**  
+예를 들자면  
+포인터 변수를 선언하여 그 주소값이 0x000f라고 가정했을 때  
+프로그램을 종료하고 다시 실행해서 주소값 0x000f을 가져오더라도 기존 데이터를 가져올 수 없다.(프로그램이 종료되면 기존에 할당되었던 메모리는 해제되고 없어진다)  
+
+네트워크 통신 또한 마찬가지이다.  
+각 PC마다 사용하고 있는 메모리 공간 주소는 전혀 다르다.  
+그렇기 때문에 내가 다른 PC로 전송한 데이터(0x000f)는 무의미하다.  
+이 데이터를 받은 PC에서의 메모리 주소 0x000f에는 전혀 다른 값이 존재하기 때문이다.  
+
+직렬화를 하게 되면 각 주소값이 가지는 데이터들을 전부 끌어모아서 값 형식(Value Type)데이터로 변환해준다.  
+이러한 이유때문에 데이터를 저장, 통신 전에 **'데이터 직렬화(Serialization)'** 작업이 필요한 것이다!!  
+직렬화가 된 데이터들은 언어에 따라서 텍스트 혹은 바이너리 등의 형태가 되는데, 이러한 형태가 되었을 때 저장하거나 통신 시 파싱이 가능한 유의미한 데이터가 되는 것이다.  
+
+한 가지 예시를 더 말하자면,  
+String이 포인터로 구현되어 있는 경우 int, double 등 과는 다르게 내부적으로 메모리가 연속적으로 되어있지 않다 (int*는 4byte씩 double*는 8byte씩 메모리가 연속적으로 배치되어 있음). 이 String 데이터를 무사히 저장 혹은 전송하기 위해서는 이 메모리 데이터들을 연속적으로 배치, 값 타입 변조 즉 직렬화를 해줘야 하는 것이다.  
+
+마지막으로 요약해보면  
+**직렬화를 쓰는 이유는 사용하고 있는 데이터들을 파일 저장 혹은 데이터 통신에서 파싱할 수 이쓴 유의미한 데이터를 만들기 위함이다.**  
+
+<br>
+
+java에서 serialize란 (아래 설명의 반대가 deserialize)
+- 자바 스템 내부에서 사용되는 Object 또는 data를 외부의 자바 시스템에서도 사용할 수 있도록 byte 형태로 데이터를 변환하는 기술
+- JVM의 메모리에 상주(heap or stack)되어 있는 객체 데이터를 byte 형태로 변환하는 기술
+
+### [Java] On-heap, Off-heap
+- **On-heap** stroe   
+Java 프로그램에서 new 연산 등을 이용해 객체를 생성하면 JVM은 힙(Heap) 메모리 영역에 객체를 생성하여 저장, 관리한다. C/C++과 다르게 Java에서는 명시적으로 할당받은 메모리 영역을 해제하는 등의 조치는 취하지 않아도 된다. GC(Garbage Collection) 알고리즘이 귀찮고 어렵고 문제를 발생시킬 수 있는 메모리 관리를 대신 해주기 때문이다.  
+Java에서 생성된 객체가 저장되는 힙 영역을 좀 더 자세하게 On-heap store라고 한다.   
+일반적인 경우라면 On-heap 영역만 인지하고 사용해도 애플리케이션을 작성하는데 문제는 없지만, On-heap store에 객체를 저장하다보면 GC 오버헤드(특히 Full GC)때문에 애플리케이션의 성능이 저하되는 경험을 할 수 있다. 
+
+- **Off-heap** store   
+Off-heap store는 '힙 밖에 저장한다'라는 의미를 가지고 있다. 힙 밖에 저장한다는 의미는 GC 대상으로 삼지 않겠다는 의미다. 다만 GC가 대신해주는 메모리 관리 등을 직접 애플리케이션이 해줘야 하기 때문에 번거롭고 위험할 수 있다.   
+Off-heap store에 저장되는 객체는 직렬화(Serialize)한 다음 저장해야한다. 이런저런 이유로 Allocation/Deallocation 비용이 일반 버퍼에 비해 높다. 때문에 Off-heap store에 저장되는 객체는 사이즈가 크고(Large) 오랫동안 메모리에 살아있는(Long-lived) 객체이면서 시스템 네이티브 I/O 연산(Memory Mapped I/O 같은..)의 대상이 되는 객체를 사용하는게 좋다.
+
+</div>
+</details>
+
+
+
+
+
+
+
+<br>
+<br>
+<br>
+
+15장. 드라이버 익스큐터, 잡, 스테이지, 태스크 등등등
