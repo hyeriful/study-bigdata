@@ -250,3 +250,33 @@ driver가 할당한 task를 받아 실행하고 task의 상태와 결과를 driv
 (스파크를 학습하거나, 애플리케이션 테스트 그리고 개발 중인 애플리케이션을 반복적으로 실행하는 용도로 주로 사용된다.)
 
 
+### 스파크 애플리케이션의 생애주기
+- 스파크 외부   
+클러스터 관점(스파크를 지원하는 인프라 관점).
+
+1. 클라이언트 요청   
+<img width="500" src="https://user-images.githubusercontent.com/55703132/111571482-2e129980-87ea-11eb-959e-26b185901a79.JPG" />
+
+2. 스파크 애플리케이션 시작   
+<img width="500" src="https://user-images.githubusercontent.com/55703132/111571979-1851a400-87eb-11eb-97f0-c676853a83c5.JPG" />
+
+코드에 반드시 스파크 클러스터(ex. driver, executor)를 초기화하는 **SparkSession**이 포함되어야 한다. 
+
+3. 실행  
+<img width="400" src="https://user-images.githubusercontent.com/55703132/111572116-623a8a00-87eb-11eb-9a3a-ca35ffef6e27.JPG" />
+
+드라이버는 각 워커에 태스크를 할당한다. 태스크를 할당받은 워커는 태스크의 상태와 성공/실패 여부를 드라이버에 전송한다.
+
+4. 완료  
+스파크 애플리케이션의 실행이 완료되면 클러스터 매니저는 드라이버가 속한 스파크 클러스터의 모든 익스큐터를 정료시킨다.
+
+<br>
+
+- 스파크 내부   
+   - **Job**   
+   보통 **action 하나당 하나의 스파크 job이 생성되며 action은 항상 결과를 반환**한다. Job은 일련의 stage로 나뉘며 stage 수는 shuffle 작업이 얼마나 많이 발생하는지에 따라 달라진다.
+   - **Stage**   
+   다수의 머신에서 동일한 연산을 수행하는 task의 그룹이다. 즉, Stage란 DAGSchedualr에 의해서 생성된 물리적 실행 계획의 단계(Step)들이다. 하나의 Stage를 처리하기 위해서는 하나 이상의 Task가 필요하다.  
+   Stage가 나뉘어지는 기준은 shuffle dependencies에 의해서 정해진다. 즉, Shuffle을 발생시키는 join, repartition과 같은 연산이 Stage가 나뉘어지는 기준이 된다.
+   - **Task**   
+   **단일 executor에서 실행할 데이터의 블록과 다수의 transformation 조합**으로 볼 수 있다. 즉, task는 데이터 단위(파티션)에 적용되는 연산 단위를 의미한다.
