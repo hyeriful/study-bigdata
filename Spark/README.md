@@ -7,7 +7,7 @@
 
 하둡과 스파크 모두 빅데이터 처리 프레임워크라는 공통점이 있지만, 하둡은 대량의 데이터를 서버 클러스터 내 복수의 노드들에 분산시키는 역할을 한다. 스파크는 저장소 시스템의 데이터를 연산하는 역할만 수행할 뿐 영구 저장소 역할은 수행하지 않는다.
 
-하둡과 아파치는 상호 독립적, 상호 보완적이다. 하둡은 HDFS와 맵리듀스를 핵심 구성요소로 제공하므로 스파크를 필수적으로 필요로 하지 않는다. 반대로 스파크도 하둡을 필수적으로 필요로 하지 않는다.다. Amazon S3, Apache Cassandra 등을 저장소로 지원하기 때문이다. 그러나 이 둘은 함께 할 때 좋은 궁합을 보인다.
+하둡과 아파치는 상호 독립적, 상호 보완적이다. 하둡은 HDFS와 맵리듀스를 핵심 구성요소로 제공하므로 스파크를 필수적으로 필요로 하지 않는다. 반대로 스파크도 하둡을 필수적으로 필요로 하지 않는다. Amazon S3, Apache Cassandra 등을 저장소로 지원하기 때문이다. 그러나 이 둘은 함께 할 때 좋은 궁합을 보인다.
 
 데이터 운영 및 리포팅 요구 대부분이 정적인 것이고, 배치 모드의 프로세싱을 기다릴 수 있다면, 굳이 스파크를 쓰지 않고 맵리듀스 프로세싱 방식을 채택해도 무방하다. 스파크가 필수적인 비즈니스는 실시간으로 수집되는 스트리밍 데이터를 처리하거나, 머신러닝 알고리즘과 같이 애플리케이션이 복합적인 운영을 필요로 하는 경우이다. 또 스파크의 속도는 맵리듀스의 속도보다 월등히 빠르다.
 
@@ -27,19 +27,12 @@ The architecture of a Spark Application
 
 <br>
 
+`스파크 애플리케이션은 'SparkSession'이라 불리는 driver process로 제어한다. 하나의 SparkSession은 하나의 스파크 애플리케이션에 대응한다.`
+
 핵심 !!
 - 스파크는 사용 가능한 자원을 파악하기 위해 클러스터 매니저(spark standlone, hadoop yarn, mesos)를 사용한다.
 - driver process는 주어진 작업을 완료하기 위해 드라이버 프로그램의 명령을 executor에서 실행할 책임이 있다.
 
-<details>
-<summary>SparkSession</summary>
-<div markdown="1">
-
-**SparkSession**  
-스파크 애플리케이션은 **SparkSession**이라 불리는 driver process로 제어한다. 하나의 SparkSession은 하나의 스파크 애플리케이션에 대응한다.
-
-</div>
-</details>
 <br>
 
 ### Transformation and Action
@@ -53,7 +46,7 @@ transformation에는 두가지 유형이 있다.
 <br>
 
 ## 구조적 API
-구조적 API - DataFrame, SQL, Dataset  
+구조적(고수준) API - DataFrame, SQL, Dataset  
 - 사용자가 정의한 다수의 transformation은 DAG(directed acyclic graph)로 표현되는 명령을 만들어낸다.
 - action은 하나의 잡을 클러스터에서 실행하기 위해 stage와 task로 나누고 DAG 처리 프로세스를 실행한다.
 - transformation과 action을 다루는 논리적 구조가 DataFrame과 Dataset이다.
@@ -75,6 +68,8 @@ DataFrame과 Dataset은 다양한 데이터 타입의 테이블형 데이터를 
 2. 스파크가 코드를 **논리적 실행 계획**으로 변환
 3. 스파크가 **논리적 실행 계획을 물리적 실행 계획으로** 변환하며 그 과정에서 추가적인 **최적화**를 할 수 있는지 확인
 4. 스파크는 클러스터에서 **물리적 실행 계획(RDD 처리)** 을 실행
+
+<br>
 
 카탈리스트 옵티마이저가 코드를 넘겨 받고 실제 실행 계획을 생성한다.  
 
@@ -122,26 +117,48 @@ RDD에 있는 각각 데이터셋은 클러스터의 다른 노드에서 계산 
 
 <br>
 
-- RDD, DataFrame, Dataset 공통점 : 불변성, 인메모리, 탄력성, 분산컴퓨팅       
+## RDD vs DataFrame vs Dataset
+RDD, DataFrame, Dataset 공통점 : 불변성, 인메모리, 탄력성, 분산컴퓨팅       
 
-- 차이점   
+차이점   
+- RDD   
+RDD는 위 Low level API(Transform, Action)를 모든 파티션에 병렬로 제공할 수 있다.   
+**RDD 언제사용하는가?**   
+   - Low-level transformation, actions 처리할 때
+   - Unstructured data
+   - Functional Programming으로 처리하고 싶을 때
+   - 스키마 신경 쓰고 싶지 않을 때
+   - Structured, Semi-Structured 데이터 처리 시, DataFrame, Dataset으로 얻을 수 있는 이점을 포기해도 될 때(Optimization, Performance)
+
+- Dataframe, Dataset    
+**Datasets vs DataFrames, 언제 무엇을 사용해야 할까?**  
+   - 높은 추상화의 API를 사용하고 싶은 경우 —> DataFrame, Dataset
+   - map, filters 등 다양한 Spark API를 사용하고 싶다면 —> DataFrame, Dataset
+   - type-safety를 컴파일 단계에서 확인하고 싶다면 —> Dataset
+
+<br>
+
+! 아래 표 내용에서 `Serialization`, `Efficiency/Memory use` 특히 잘 모르겠다ㅠㅠ ! 
 
 ||RDD|DataFrame|Dataset|
 |--------|--------|--------|--------|
 |Data Formats|structured(RDB, csv),<br>unstructured(영상,이미지,음성) data<br>& 스키마 추론 불가능|structured,<br>semi-structured(json, html, xml) data|structured, unstructured data|
 |Compile-time type safety|O|X (run-time)|O|
 |Serialization|Java serialization<br>(개별 java, scala objects를 직렬화하는 overhead는 비용이 많이들고 노드간에 data와 structure를 모두 전송해야 한다)|데이터를 binary형식의 off-heap storage (in memory)로 직렬화 한 다음, spark가 schema를 이해하므로 off heap memory에서 많은 transformation을 수행할 수 있다.||
-|Garbage Collection|O|X|X|
-|Efficiency/Memory use|많은 시간이 걸리는 java, scala 객체에서 개별적으로 직렬화를 수행하면 효율성이 저하된다.|직렬화를 위해 off heap memory를 사용해서 overhead가 줄어든다. byte code를 동적으로 생성하여 직렬화된 데이터에 대해 많은 연산을 수행한다.||
+|Garbage Collection|O<br>개별 object를 만들고 삭제함으로 인해 GC overhead가 있다.|X<br>데이터셋 각 row에 대해 개별 object를 구성할 때 GC 비용을 방지한다.|X|
+|Efficiency/Memory use|많은 시간동안 java, scala 객체에서 개별적으로 직렬화를 수행하면 효율성이 저하된다.|직렬화를 위해 off heap memory를 사용하면 overhead가 줄어든다. It generates byte code dynamically so that many operations can be performed on that serialized data. No need for deserialization for small operations.||
+|Performance optimization|X|O<br>DataFrame, Dataset은 Spark SQL Engine을 바탕으로 만들어졌다. 이들은 Catalyst를 사용하기 때문에 논리적/물리적으로 최적화 쿼리를 사용할 수 있다.|O|
 |Lazy Evalution|O|O|O|
 
++'직렬화' 행에 대한 추가설명  
+Spark 가 바이너리 형식의 오프힙저장소로 데이터를 직렬화 한다음 오프 힙메모리에서 직접 많은 변환을 수행하여 개별 개체를 구성하는 것과 관련된 가비지 수집 비용을 피할 수 있으므로 단일 프로세스에서 계산을 수행할 때 장점이 있다.(데이터를 인코딩하기 위해 자바 직렬화를 사용할 필요가 없음)
 
 <details>
 <summary>참고할 여러 개념들</summary>
 <div markdown="1">
 
 ### 컴파일 타임과 런타임
-Compile time : 개발자가 소스코드를 작성하고 컴파일이라는 과정을 통해 기계어코드로 변환 되어 실행 가능한 프로그램이 되며, 이러한 편집 과정을 컴파일타임(Compiletime) 이라고 부른다.
+Compile time : 개발자가 소스코드를 작성하고 컴파일이라는 과정을 통해 기계어코드로 변환 되어 실행 가능한 프로그램이 되며, 이러한 편집 과정을 컴파일타임(Compiletime) 이라고 부른다.   
 Run time : 컴파일 과정을 마친 응용 프로그램이 사용자에 의해서 실행되어 지는 때(time)를 의미한다.
 
 ### 직렬화와 역직렬화
@@ -178,33 +195,41 @@ Run time : 컴파일 과정을 마친 응용 프로그램이 사용자에 의해
 직렬화가 된 데이터들은 언어에 따라서 텍스트 혹은 바이너리 등의 형태가 되는데, 이러한 형태가 되었을 때 저장하거나 통신 시 파싱이 가능한 유의미한 데이터가 되는 것이다.  
 
 한 가지 예시를 더 말하자면,  
-String이 포인터로 구현되어 있는 경우 int, double 등 과는 다르게 내부적으로 메모리가 연속적으로 되어있지 않다 (int*는 4byte씩 double*는 8byte씩 메모리가 연속적으로 배치되어 있음). 이 String 데이터를 무사히 저장 혹은 전송하기 위해서는 이 메모리 데이터들을 연속적으로 배치, 값 타입 변조 즉 직렬화를 해줘야 하는 것이다.  
+String이 포인터로 구현되어 있는 경우 int, double 등 과는 다르게 내부적으로 메모리가 연속적으로 되어있지 않다 (*int*는 *4byte*씩 *double*는 *8byte*씩 메모리가 연속적으로 배치되어 있음). 이 String 데이터를 무사히 저장 혹은 전송하기 위해서는 이 메모리 데이터들을 연속적으로 배치, 값 타입 변조 즉 직렬화를 해줘야 하는 것이다.  
 
 마지막으로 요약해보면  
-**직렬화를 쓰는 이유는 사용하고 있는 데이터들을 파일 저장 혹은 데이터 통신에서 파싱할 수 이쓴 유의미한 데이터를 만들기 위함이다.**  
+**직렬화를 쓰는 이유는 사용하고 있는 데이터들을 파일 저장 혹은 데이터 통신에서 파싱할 수 있는 유의미한 데이터를 만들기 위함이다.**  
 
 <br>
 
 java에서 serialize란 (아래 설명의 반대가 deserialize)
-- 자바 스템 내부에서 사용되는 Object 또는 data를 외부의 자바 시스템에서도 사용할 수 있도록 byte 형태로 데이터를 변환하는 기술
+- 자바 시스템 내부에서 사용되는 Object 또는 data를 외부의 자바 시스템에서도 사용할 수 있도록 byte 형태로 데이터를 변환하는 기술
 - JVM의 메모리에 상주(heap or stack)되어 있는 객체 데이터를 byte 형태로 변환하는 기술
 
 ### [Java] On-heap, Off-heap
+
+```
+The on-heap store refers to objects that will be present in the Java heap (and also subject to GC).
+On the other hand, the off-heap store refers to (serialized) objects that are managed by EHCache, 
+but stored outside the heap (and also not subject to GC). As the off-heap store continues to be managed in memory, 
+it is slightly slower than the on-heap store, but still faster than the disk store.
+```
+
 - **On-heap** stroe   
 Java 프로그램에서 new 연산 등을 이용해 객체를 생성하면 JVM은 힙(Heap) 메모리 영역에 객체를 생성하여 저장, 관리한다. C/C++과 다르게 Java에서는 명시적으로 할당받은 메모리 영역을 해제하는 등의 조치는 취하지 않아도 된다. GC(Garbage Collection) 알고리즘이 귀찮고 어렵고 문제를 발생시킬 수 있는 메모리 관리를 대신 해주기 때문이다.  
 Java에서 생성된 객체가 저장되는 힙 영역을 좀 더 자세하게 On-heap store라고 한다.   
 일반적인 경우라면 On-heap 영역만 인지하고 사용해도 애플리케이션을 작성하는데 문제는 없지만, On-heap store에 객체를 저장하다보면 GC 오버헤드(특히 Full GC)때문에 애플리케이션의 성능이 저하되는 경험을 할 수 있다. 
 
 - **Off-heap** store   
-Off-heap store는 '힙 밖에 저장한다'라는 의미를 가지고 있다. 힙 밖에 저장한다는 의미는 GC 대상으로 삼지 않겠다는 의미다. 다만 GC가 대신해주는 메모리 관리 등을 직접 애플리케이션이 해줘야 하기 때문에 번거롭고 위험할 수 있다.   
-Off-heap store에 저장되는 객체는 직렬화(Serialize)한 다음 저장해야한다. 이런저런 이유로 Allocation/Deallocation 비용이 일반 버퍼에 비해 높다. 때문에 Off-heap store에 저장되는 객체는 사이즈가 크고(Large) 오랫동안 메모리에 살아있는(Long-lived) 객체이면서 시스템 네이티브 I/O 연산(Memory Mapped I/O 같은..)의 대상이 되는 객체를 사용하는게 좋다.
+EHCache에 에 의해 관리되지만 힙 외부에 저장되는 (직렬화 된) 객체를 참조한다. 즉 Off-heap store는 '힙 밖에 저장한다'라는 의미를 가지고 있고, 힙 밖에 저장한다는 의미는 GC 대상으로 삼지 않겠다는 의미다.  
+EHCache의 off-heap store는 일반 object를 heap에서 가져와서 직렬화하여 EHCache가 관리하는 메모리 덩어리에 바이트로 저장한다. 이 상태에서는 객체를 직접 사용할 수 없으므로 먼저 deserialization 해야한다.
 
 </div>
 </details>
 <br>
 
 ## 클러스터에서 스파크 실행하기
-물리적 실행 계획은 크러스터의 머신에서 실행되는 단위인 RDD 작업으로 구성된다. 스파크에서 코드를 실행할 때 어떤 일이 발생하는지 알아보도록 하자.  
+물리적 실행 계획은 클러스터의 머신에서 실행되는 단위인 RDD 작업으로 구성된다. 스파크에서 코드를 실행할 때 어떤 일이 발생하는지 알아보도록 하자.  
 
 ### 스파크 애플리케이션의 아키텍처
 - driver  
