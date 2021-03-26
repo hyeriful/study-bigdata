@@ -3,14 +3,15 @@
 
 - RDBMS와 맵리듀스 비교
 
-||전통적인 RDBMS|맵리듀스|
+||전통적인 RDBMS|Hadoop|
 |------|---|---|
 |데이터 크기|기가바이트|페타바이트|
+|데이터 형식|In this structured data is mostly processed|In this both structured and unstructured data is processed|
 |접근 방식|대화형과 일괄 처리 방식|일괄 처리 방식|
 |변경|여러 번 읽고 쓰기|한 번 쓰고 여러 번 읽기|
 |구조|쓰기 기준 스키마 (Schema on Write)|읽기 기준 스키마 (Schema on Read)|
-|무결성|높음|낮음|
-|확장성|비선형|선형|
+|무결성|높음|비교적 낮음|
+|확장성|비교적 낮음|높음|
 
 <details>
 <summary>Schema on Read / Schema on Write</summary>
