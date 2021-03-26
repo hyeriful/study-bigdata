@@ -75,7 +75,7 @@ Map에서 출력된 데이터에서 중복 데이터를 제거하고 원하는 �
 리듀스 출력에 대한 HDFS 블록의 첫번째 복제본은 로컬 노드에 저장되고, 나머지 복제본은 외부 랙에 저장된다.
 
 ### Combiner function
-클러스터에서 맵리듀스 잡이 사용하는 네트워크 대역폭은 한계각 있기 때문에 맵과 리듀스 태스크 사이의 데이터 전송을 최소화할 필요가 있다. 하둡은 맵의 결과를 처리하는 **combiner function**을 허용한다 (컴바이너 함수의 출력이 결국 리듀스 함수의 입력이 된다). 컴바이너 함수는 최적화와 관련이 있다. 하둡은 컴바이너 함수의 호출 빈도와 상관없이 리듀스의 결과가 언제나 같도록 보장한다.
+클러스터에서 맵리듀스 잡이 사용하는 네트워크 대역폭은 한계가 있기 때문에 맵과 리듀스 태스크 사이의 데이터 전송을 최소화할 필요가 있다. 하둡은 맵의 결과를 처리하는 **combiner function**을 허용한다 (컴바이너 함수의 출력이 결국 리듀스 함수의 입력이 된다). 컴바이너 함수는 최적화와 관련이 있다. 하둡은 컴바이너 함수의 호출 빈도와 상관없이 리듀스의 결과가 언제나 같도록 보장한다.
 
 ex. 해당 연도에 최고기온 구하기   
 <img width="600" src="https://user-images.githubusercontent.com/55703132/111160946-f2a37f80-85dd-11eb-9b23-6b179c375ebe.JPG" />
@@ -93,7 +93,7 @@ ex. 해당 연도에 최고기온 구하기
 - **클라이언트** : 맵리듀스 잡을 제출
 - **YARN Resource Manager** : 클러스터 상에 계산 리소스의 할당을 제어
 - **YARN Node Manager** : 클러스터의 각 머신에서 계산 컨테이너를 시작하고 모니터링
--  **MapReduce Application Master** : 맵리듀스 잡ㅇ르 수행하는 각 Task를 제어. AM와 MapReduce task는 컨테이너 내에서 실행되며, RM는 잡을 할당하고 NM는 태스크를 관리하는 역할을 맡는다.
+-  **MapReduce Application Master** : 맵리듀스 잡을 수행하는 각 Task를 제어. AM와 MapReduce task는 컨테이너 내에서 실행되며, RM는 잡을 할당하고 NM는 태스크를 관리하는 역할을 맡는다.
 -  **Distributed FileSystem** : 다른 단계 간에 잡 리소스 파일들을 공유하는 데 사용된다(보통 HDFS 사용)
 
 
@@ -104,7 +104,7 @@ ex. 해당 연도에 최고기온 구하기
 
 2. Resource Manager에 맵리듀스 잡ID로 사용될 새로운 애플리케이션 ID를 요청한다.   
 잡의 출력 명세를 확인한다. 예를 들어 출력 디렉터리가 지정되지 않았거나 이미 존재한다면 해당 잡은 제출되지 않고 맵리듀스 프로그램에 에러를 전달한다.   
-잡읜 입력 스플릿(input split)을 계산한다. 스플릿을 계산할 수 없다면(예를 들어 입력 경로가 없다면) 잡은 제출되지 않고 맵리듀스 프로그램에 에러를 전달한다.
+잡의 입력 스플릿(input split)을 계산한다. 스플릿을 계산할 수 없다면(예를 들어 입력 경로가 없다면) 잡은 제출되지 않고 맵리듀스 프로그램에 에러를 전달한다.
 
 3. 잡 실행에 필요한 잡 JAR 파일, 환경 설정 파일, 계산된 입력 스플릿 등의 잡 리소스를 공유 파일시스템에 있는 해당 잡 ID 이름의 디렉터리에 복사한다.
 
@@ -112,7 +112,8 @@ ex. 해당 연도에 최고기온 구하기
 
 5. RM가 YARN 스케줄러에 요청을 전달한다. 스케줄러는 컨테이너를 하나 할당하고, RM는 NM의 운영 규칙에 따라 AM process를 시작한다.
 
-6. AM는 잡을 초기화할 대 잡의 진행 상태를 추적하기 위한 다수의 bookkeeping(장부) 객체를 생성하고, 이후 각 태스크로부터 진행 및 종료 보고서를 받는다.
+6. Job 초기화.  
+AM는 잡을 초기화할 때 잡의 진행 상태를 추적하기 위한 다수의 bookkeeping(장부) 객체를 생성한다. 이후에 각 태스크로부터 진행 및 종료 보고서를 받는다.
 
 7. 클라이언트가 계산한 입력 스플릿 정보를 공유 파일시스템에서 읽어온다.  
 입력 스플릿 별로 맵 태스크 객체를 생성한다.  
@@ -132,7 +133,7 @@ AM는 맵리듀스 잡을 구성하는 태스크를 실행할 방법을 결정�
 1. Task 실패  
 AM는 태스크 시도 실패를 알게 되면 해당 태스크 실행을 다시 스케줄링한다.
 
-2. Application MAster 실패   
+2. Application Master 실패   
 복구 작업 방식은 다음과 같다.  
 AM는 주기적으로 RM에 heartbeat를 보내고, AM의 실패 이벤트 발생  시 RM는 이 실패를 감지하고 새로운 컨테이너(NM가 운영하는)에서 실행한 새로운 마스터 인스턴스를 시작한다.
 
@@ -167,7 +168,7 @@ high availability을 달성하기 위해서는 두 개의 RM를 active-standby �
 <summary>리듀서는 맵 출력을 인출할 서버를 어떻게 알까?</summary>
 <div markdown="1">
 
-**맵 태스크가 성공적으로 종료되면 하트비트 전송 메커니즘을 통해 Application Master에 알려준다.** 그러므로 특정 잡에 대해 AM는 맵 출력과 호스트 사이의 매핑 정보를 알 고 있다. 그리고 **리듀서 내의 한 스레드는 맵 출력 호스트 정보를 주기적으로 마스터에 요청**하며 이는 모든 정보를 얻을 때까지 실행된다.
+**맵 태스크가 성공적으로 종료되면 하트비트 전송 메커니즘을 통해 Application Master에 알려준다.** 그러므로 특정 잡에 대해 AM는 맵 출력과 호스트 사이의 매핑 정보를 알고 있다. 그리고 **리듀서 내의 한 스레드는 맵 출력 호스트 정보를 주기적으로 마스터에 요청**하며 이는 모든 정보를 얻을 때까지 실행된다.
 
 </div>
 </details>
@@ -205,20 +206,20 @@ HDFS 클라이언트는 사용자를 대신해서 네임노드와 데이터노�
 하둡은 두가지 메커니즘 제공  
 1. 파일로 백업  
 네임노드가 다수의 파일시스템에 영구적인 상태를 저장하도록. 주로 권장하는 방법은 로컬 디스크와 원격의 NFS(Network FileSystem) 마운트 두 곳에 동시에 백업하는 것이다.  
-2. 보조 네임노드(secondary namenode) 운영  
+2. [보조 네임노드(secondary namenode) 운영](#fsimage-and-edits-log)   
 secondary namenode의 주 역할은 edit log가 너무 커지지 않도록 주기적으로 namespace image를 edit log와 병합하여 새로운 namespace image를 만드는 것이다. 또한 secondary namenode는 주 네임노드에 장애가 발생할 것을 대비해서 namespace image 복제본을 보관하는 역할도 맡는다.  
 
 ### HDFS federation
-네임노드는 파일시스템의 모든 파일과 각 블록에 대한 참조 정보를 메모리에서 관리한다. 따라서 파일이 매우 많은 대형 클러스에서 **확장성**에 가장 큰 걸림돌이 되는 것은 바로 **메모리**다. 네임노드의 확장성 문제를 해결하기 위해 하둡은 **HDFS federation(연합체)** 을 지원하고 있다. HDFS federation을 활용하면 각각의 네임노드가 파일시스템의 네임스페이스(소속을 나타낸다?) 일부를 나누어 관리하는 방식으로 새로운 네임노드를 추가할 수 있다. (ex. namenode A는 /user 디렉터리 아래 모든 파일관리. namenode B는 /share 디렉터리 아래 모든 파일관리)  
+네임노드는 파일시스템의 모든 파일과 각 블록에 대한 참조 정보를 메모리에서 관리한다. 따라서 파일이 매우 많은 대형 클러스에서 **확장성**에 가장 큰 걸림돌이 되는 것은 바로 **메모리**다. **네임노드의 확장성 문제를 해결하기 위해** 하둡은 **HDFS federation**(연합체) 을 지원하고 있다. HDFS federation을 활용하면 각각의 네임노드가 파일시스템의 네임스페이스(소속을 나타낸다?) 일부를 나누어 관리하는 방식으로 새로운 네임노드를 추가할 수 있다. (ex. namenode A는 /user 디렉터리 아래 모든 파일관리. namenode B는 /share 디렉터리 아래 모든 파일관리)  
 
-HDFS federation을 적용하면 각 네임노드는 네임스페이스의 메타데이터를 구성하는 **namespace volume**과 네임스페이스에 포함된 파일의 전체 블록을 보관하는 **block pool**을 관리한다. namespace volume은 서로 독립되어 있으며, 따라서 네임노드는 서로 통신할 필요가 없고, 특정 네임노드에 장애가 발생해도 다른 네임노드가 관리하는 네임스페이스의 가용성에 영향을 주지 않는다. 하지만 block pool의 저장소는 분리되어 있지 않다! 모든 데이터노드는 클러스터의 각 네임노드마다 등록되어 있고, 여러 block poll로부터 블록을 저장한다.
+HDFS federation을 적용하면 각 네임노드는 네임스페이스의 메타데이터를 구성하는 **namespace volume**과 네임스페이스에 포함된 파일의 전체 블록을 보관하는 **block pool**을 관리한다. namespace volume은 서로 독립되어 있으며, 따라서 네임노드는 서로 통신할 필요가 없고, 특정 네임노드에 장애가 발생해도 다른 네임노드가 관리하는 네임스페이스의 가용성에 영향을 주지 않는다. 하지만 block pool의 저장소는 분리되어 있지 않다! 모든 데이터노드는 클러스터의 각 네임노드마다 등록되어 있고, 여러 block pool로부터 블록을 저장한다.
 
 ### HDFS 고가용성(HA: high availability)
 ※ HA: 서버와 네트워크, 프로그램 등의 정보 시스템이 상당히 오랜 기간 동안 지속적으로 정상 운영이 가능한 성질  
 ※ 네임노드는 single point of failure(SPOF): 네임노드에 장애가 발생하면 맵리듀스 잡을 포함하여 모든 클라이언트가 파일을 읽거나 쓰거나 조회할 수 없게 된다.
 
 High avaliability은 active-standby 상태로 설정된 한 쌍의 네임노드로 구현된다. active namenode에 장애가 발생하면 standby namenode가 그 역할을 이어받아 큰 중단 없이 클라이언트의 요청을 처리한다.  
-- 네임노드는 edit log를 공유하기 위해 HA shared storage를 반드시 사용해야 한다. standby namenode가 활성화되면 먼저 기손 active namenode의 상태를 동기화하기 위해 공유 edit log를 읽고, 이어서 active namenode에 새로 추가된 항목도 마저 읽는다.
+- 네임노드는 edit log를 공유하기 위해 HA shared storage를 반드시 사용해야 한다. standby namenode가 활성화되면 먼저 기존 active namenode의 상태를 동기화하기 위해 공유 edit log를 읽고, 이어서 active namenode에 새로 추가된 항목도 마저 읽는다.
 - 데이터노드는 block report를 두 개의 네임노드에 보내야 한다. 블랙 매핑 정보는 디스크가 아닌 네임노드의 메모리에 보관되기 때문.
 - HA에서 standby namenode는 secondary namenode의 역할을 포함하고 있으며, active namenode namespace의 체크포인트 작업을 주기적으로 수행한다.
 
@@ -235,8 +236,8 @@ High avaliability은 active-standby 상태로 설정된 한 쌍의 네임노드�
 <summary>RPC (remote procedure call)</summary>
 <div markdown="1">
 
-RPC(Remote Procedure call)이란, 별도의 원격 제어를 위한 코딩 없이 다른 주소 공간에서 리모트의 함수나 프로시저를 실행 할 수 있게 해주는 프로세스간 통신.  
-즉, 위치에 상관없이 RPC를 통해 개발자는 위치에 상관없이 원하는 함수를 사용할 수 있다.
+RPC(Remote Procedure call)란, 별도의 원격 제어를 위한 코딩 없이 다른 주소 공간에서 리모트의 함수나 프로시저를 실행 할 수 있게 해주는 프로세스간 통신.  
+즉, 위치에 상관없이 RPC를 통해 개발자는 원하는 함수를 사용할 수 있다.
 
 운영체제를 공부하다 보며 프로세스간 통신을 위해 IPC(inter-Process Communication)을 이용하는 내용을 볼 수 있는데, RPC는 IPC 방법의 한 종류로 원격지의 프로세스에 접근하여 프로시저 또는 함수를 호출하여 사용하는 방법을 말한다.
 
@@ -270,7 +271,7 @@ RPC(Remote Procedure call)이란, 별도의 원격 제어를 위한 코딩 없�
 (읽을 때와 마찬가지로 FSDataOutputStream은 데이터노드와 네임노드의 통신을 처리하는 DFSOutputStream으로 래핑된다.)
 
 4.
-   1. DFSOutputStream은 데이터를 데이터를 패킷으로 분리하고, **data queue**라 불리는 내부 큐로 패킷을 보낸다.
+   1. DFSOutputStream은 데이터를 패킷으로 분리하고, **data queue**라 불리는 내부 큐로 패킷을 보낸다.
    2. 네임노드에 복제본을 저장할 데이터노드의 목록을 요청한다.
    3. 데이터노드 목록에 포함된 노드는 파이프라인을 형성. 복제 수준이 3이면 세 개의 노드가 파이프라인에 속하게 된다.
    4. DataStreamer(데이터 큐에 있는 패킷을 처리)는 파이프라인의 첫 번째 데이터노드로 패킷을 전송 -> 첫 번째 데이터노드는 각 패킷을 저장하고 그것을 파이프라인의 두 번째 데이터노드로 보냄 -> 두번째 데이토노드는 받은 패킷을 저장하고 마지막 데이터노드로 전달
@@ -309,7 +310,7 @@ YARN은 두 가지 유형의 장기 실행 데몬을 통해 핵심 서비스를 
 
 1. 클라이언트는 YARN에서 애플리케이션을 구동하기 위해 Resource Manager에 접속하여 **Application Master** 프로세스의 구동을 요청한다.
 
-2. RM는 컨테이너에서 Application Master(map-reduce job당 하나)를 시작할 수 있는 Node Manager를 하나 찾는다.
+2. RM는 컨테이너에서 Application Master(map-reduce job당 하나)를 시작할 수 있는 Node Manager를 하나 찾는다.   
 AM가 딱 한 번만 실행될지는 애플리케이션에 따라 다르다. AM가 단순한 계산을 단일 컨테이너에서 수행하고 그 결과를 클라이언트에 반환한 후 종료되거나, 
 <details>
 <summary>Application Master</summary>
@@ -355,27 +356,32 @@ YARN은 이러한 역할을 RM와 AM를 통해 처리한다.
 <br>
 
 YARN을 사용하여 얻을 수 있는 이익
-- 확장성
-RM과 AM를 분리하는 구조이므로, 노드와 태스크 확장 가능.
+- 확장성   
+YARN은 맵리듀스1보다 큰 클러스터에서 실행될 수 있다. 맵리듀스 1에서는 job tracker가 job과 task를 모두 관리하기 때문에 4,000 노드나 40,000 태스크를 넘어서면 병목현상이 발생한다. 하지만 YARN은 RM과 AM를 분리하는 구조이므로, 더 많은 노드와 태스크까지 확장할 수 있도록 설계되었다 (10,000 노드, 100,000 태스크).
 
-- 가용성
+- 가용성   
 job tracker의 메모리에 있는 복잡한 상태 정보가 매우 빠르게 변경되는 상황에서 job tracker 서비스에 HA를 적용하는 것은 매우 어려운 일이다. 각 태스크의 상태는 수 초마다 변경되기 때문이다.  
 job tracker의 역할이 YARN에서는 RM와 AM로 분리되었기 때문에 HA 적용 가능하다. RM와 맵리듀스 잡을 위한 AM 모두에 HA를 제공한다.
 
-- 효율성
+- 효율성   
 MapReduce 1에서 각 task tracker는 map slot과 reduce slot으로 구분된 고정 크기 'slot'의 정적 할당 설정을 가지고 있다. map slot은 map task 실행에만, reduce slot은 reduce task 에만 사용할 수 있다.  
-YARN에서 Nodce Manager는 정해진 개수의 슬록 대신 일종의 리소스 풀을 관리한다. YARN의 자원을 잘게 쪼개져 있기 때문에 애플리케이션은 필요한 만큼의 자원을 요청할 수 있다. 기존에는 개별 슬롯을 사용했기 때문에 특정 태스크를 위해 너무 많거나(자원 낭비) 너무 적게(실패의 원인) 자원을 할당했다.
+YARN에서 Node Manager는 정해진 개수의 슬록 대신 일종의 리소스 풀을 관리한다. YARN의 자원은 잘게 쪼개져 있기 때문에 애플리케이션은 필요한 만큼의 자원을 요청할 수 있다. 기존에는 개별 슬롯을 사용했기 때문에 특정 태스크를 위해 너무 많거나(자원 낭비) 너무 적게(실패의 원인) 자원을 할당했다.
 
 ### YARN scheduling
 - FIFO   
-대형 잡이 완료될 때까지 작은 잡은 계속 대기해야 한다.
+대형 잡이 완료될 때까지 작은 잡은 계속 대기해야 한다는 단점이 존재한다.
 - Capacity   
 작은 잡이 제출되는 즉시 분리된 전용 큐에서 처리해준다. 해당 큐는 잡을 위한 자원을 미리 예약해두기 때문에 전체 클러스터의 효율성은 떨어진다. 또한 대형 잡은 FIFO 스케줄러보다 늦게 끝나게 된다.  
-회사에서 각 조직이 전체 클러스터의 지정된 가용량을 미리 할당받는 것이다.
+예를 들면, 회사에서 각 조직이 전체 클러스터의 지정된 가용량을 미리 할당받는 것이다.
 - Fair  
-실행 중인 모든 잡의 자원을 동적으로 분배하기 때문에 미리 자원의 가용량을 예약할 필요가 없다.
+실행 중인 모든 잡의 자원을 동적으로 분배하기 때문에 미리 자원의 가용량을 예약할 필요가 없다.  
+실행 중인 모든 애플리케이션에 동일하게 자원을 할당한다. 하지만 균등한 공유는 **큐 사이**에만 실제로 적용된다.
 
-<img width="270" alt="FIFO_scheduler" src="https://user-images.githubusercontent.com/55703132/111071180-43e93b80-8518-11eb-85d8-e58e0cfa2eb2.JPG" /> <img width="270" alt="Capacity_scheduler" src="https://user-images.githubusercontent.com/55703132/111071183-477cc280-8518-11eb-8296-c00b37fd04f4.JPG" /> <img width="270" alt="Fair_scheduler" src="https://user-images.githubusercontent.com/55703132/111071185-49df1c80-8518-11eb-8fb9-5ec986ced4df.JPG" />
+<img width="270" alt="FIFO_scheduler" src="https://user-images.githubusercontent.com/55703132/111071180-43e93b80-8518-11eb-85d8-e58e0cfa2eb2.JPG" /> <img width="270" alt="Capacity_scheduler" src="https://user-images.githubusercontent.com/55703132/111071183-477cc280-8518-11eb-8296-c00b37fd04f4.JPG" /> <img width="270" alt="Fair_scheduler" src="https://user-images.githubusercontent.com/55703132/111071185-49df1c80-8518-11eb-8fb9-5ec986ced4df.JPG" />  
+
+Fair Scheduler. 사용자 사이에만 균등하게 공유 된다고 볼 수 있다.
+
+<img width="350" alt="사용자 큐 간의 균등 공유" src="https://user-images.githubusercontent.com/55703132/112646641-0dea7680-8e8b-11eb-9f99-6d009cb75d07.jpg" />
 
 <br>
 
@@ -396,7 +402,7 @@ Kerberos를 사용할 때 클라이언트가 이 서비스를 이용하려면 �
 
 <img width="600" alt="kerberos 티켓 교환 프로토콜의 3단계 절차" src="https://user-images.githubusercontent.com/55703132/111272080-7492b780-8675-11eb-9c24-e5550d2ae147.jpg" />
 
-### FSImage and Edits log
+### [FSImage and Edits log](#네임노드와-데이터노드)
 파일시스템의 클라이언트가 **쓰기** 동작을 하면 일단 edits log에 해당내역이 기록된다. 네임노드는 파일시스템의 메타데이터를 in-memory(파일과 메모리 양쪽에 데이터를 유지하는 방식)로 관리하는데, edits log를 먼저 변경한 후 메모리상의 메타데이터도 변경한다. 클라이언트의 **읽기** 요청에는 in-memory 메타데이터만 사용된다.   
 
 네임노드는 쓰기 동작이 끝날 때마다 성공했다는 결과를 클라이언트에 알려주기 전에, 변경 내역에 대해 edits log를 flush하여 동기화시킨다.   
