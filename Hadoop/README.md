@@ -142,7 +142,7 @@ NM가 crash에 의해 실패하거나 굉장히 느리게 수행 중이라면 RM
 애플리케이션 실패 횟수가 높으면 NM 자체가 실패하지 않았더라도 NM는 블랙리스트에 등록된다. 블랙리스트 등록은 AM가 한다.
 
 4. Resource Manager 실패  
-심각한 상황. RM 없이는 잡이나 태스크 컨테이너가 실행될 수 없기 때문. RM는 single point of failure ([네임노드](네임노드와-데이터노드)도 SPOF입니당~)   
+심각한 상황. RM 없이는 잡이나 태스크 컨테이너가 실행될 수 없기 때문. RM는 single point of failure ([네임노드](#네임노드와-데이터노드)도 SPOF입니당~)   
 high availability을 달성하기 위해서는 두 개의 RM를 active-standby 설정으로 실행해야 한다. 실행 중인 애플리케이션에 대한 모든 정보를 고가용 상태 저장소(주키퍼 혹은 HDFS)에 보관되기 때문에 standby RM는 실패한 active RM의 핵심 상태를 복구할 수 있다. 그리고 NM의 정보는 상태 저장소에 보관되지 않는데, 이는 NM가 첫 번째 heartbeat를 전송할 때 새로운 RM가 상대적으로 빠르게 재구축할 수 있기 때문이다 (**태스크는** RM 상태의 일부가 아니며 **AM가 관리함을 명심!** 따라서 보관할 상태 정보는 MapRedcue 1의 job tracker에 비해 굉장히 적다).
 
 
